@@ -1,4 +1,4 @@
-  # LegacyAppCycle
+# LegacyAppCycle
 
 ---
 <p align="center">
@@ -7,257 +7,298 @@
 
 ---
 
-## Project Overview
+## Overview
 
-**LegacyAppCycle** is an automation toolkit for deploying Java applications to target servers using a legacy approach, powered by Ansible. Initially crafted for Ubuntu 24.04, its modular design makes it adaptable to most Linux distributions. The solution combines application release/version tracking with orchestrated deployment workflows, serving teams who manage Java app lifecycles in legacy or mixed environments.
-
-The repository is organized into two main directories:
-- `ansible/`: Remote orchestration logic (playbooks, configuration, inventories)
-- `app/`: Application-specific artifacts (binaries, scripts, version markers)
-
-This structure supports scalable deployment, maintenance, and rollback for Java apps in classic IT infrastructure. While Ubuntu 24.04 is the reference, only minor changes are needed for other Linux systems.
+BARQ Lite automates the deployment of a Java application across multiple Ubuntu servers using **Bash**, **Ansible**, and optionally **Docker**. It integrates centralized logging, TLS certificate management, and load balancing via **Nginx** (with bridge networking), making it ideal for professional DevOps portfolios or robust production setups.
 
 ---
 
-## Prerequisites
+---
 
-### Ubuntu 24.04
+## Key Features
 
-- **Root or sudo privileges**
-- **Update packages**
-  ```bash
-  sudo apt update
-  sudo apt upgrade
-  ```
-- **Install OpenJDK**
-  ```bash
-  sudo apt install openjdk-11-jdk
-  java -version
-  ```
-  Optionally configure `JAVA_HOME`:
-  ```bash
-  sudo nano /etc/environment
-  JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-  source /etc/environment
-  echo $JAVA_HOME
-  ```
-- **Install Ansible**
-  ```bash
-  sudo apt install -y software-properties-common
-  sudo add-apt-repository --yes --update ppa:ansible/ansible
-  sudo apt update
-  sudo apt install -y ansible
-  ansible --version
-  ```
-- **Set up passwordless SSH**
-  ```bash
-  ssh-keygen -t rsa
-  ssh-copy-id user@your-target-server
-  ```
-- **Ensure network connectivity** (test with `ping` or `ssh`)
-
-### Other Linux Distros
-
-- Install Ansible and OpenJDK using your package manager:
-  - CentOS: `sudo yum install java-11-openjdk-devel ansible`
-  - Debian: `sudo apt install openjdk-11-jdk ansible`
-  - SLES/OpenSUSE: `sudo zypper install java-11-openjdk ansible`
-- Confirm SSH access and privileges
+| Area                | Native JAR         | Dockerized           | Ansible/Bash         | Nginx LB             | Cloud Integration    |
+|---------------------|--------------------|----------------------|----------------------|----------------------|---------------------|
+| Java setup          | OpenJDK role       | Dockerfile           | Automated install    |                      |                     |
+| Deployment          | `java -jar`        | `docker run`         | Playbooks/scripts    |                      |                     |
+| Logging             | File+logrotate     | Bind/log drivers     | Logrotate config     | Proxy logs           |                     |
+| TLS/SSL             | Certbot/manual     | Mounted/scripted     | Certbot role/cron    | SNI/termination      | Let's Encrypt       |
+| App updates         | Scripted restart   | Docker restart       | Systemd/Bash         | Automatic reload     |                     |
+| LB/networking       | Nginx upstream     | Docker bridge        |                      | Bridge verification  |                     |
+| Cloud exposure      | SSH/firewall       | Host networking      |                      | UFW/firewall         | AWS/Static IP       |
+| Automation/report   | Cron/log alerts    | Health check         | Ansible cron         | Uptime alerts        | Webhook/email       |
 
 ---
 
-## Directory Structure
+## Getting Started
+
+### Prerequisites
+
+- **Ubuntu 20.04/22.04 LTS** (app servers & Nginx LB)
+- **Ansible** installed (`pip install ansible`)
+- (Optional) **Docker** installed for containerized deployment
+
+### Server Preparation
+
+1. **Update System**
+   ```sh
+   sudo apt update && sudo apt upgrade -y
+   ```
+2. **Add Deployment User**
+   ```sh
+   sudo adduser deploy
+   sudo usermod -aG sudo deploy
+   ```
+3. **Enable SSH and Firewall**
+   ```sh
+   sudo apt install openssh-server
+   sudo systemctl enable --now ssh
+   sudo ufw allow OpenSSH
+   sudo ufw enable
+   ```
+
+---
+
+## Folder Structure
 
 ```text
-LegacyAppCycle/
-├── ansible/
-│   └── ...           # Playbooks, roles, inventories, config
-├── app/
-│   └── ...           # Java binaries, scripts, version markers
-└── README.md         # Project documentation
+barq-lite/
+├─ ansible/
+|  ├─Fetchlog.yml                 #fetch the logs back to the local host
+|  ├─KillprocessBarq.yml          #kill the native barq process befor run docker
+|  ├─KillOricessDocker.yml        #kill the docker process before run the native app
+│  ├─ inventory.ini               # the main inventory must encrypt it using vault
+│  ├─ site.yml                    #The main play book
+│  ├─ group_vars/
+│  │  └─ all.yml 
+│  ├─ roles/
+│  │  ├─ common/                # users, dirs, initial logs, TLS folder
+│  │  │  └─ tasks/main.yml
+│  │  ├─ scripts/               # bash scripts + cron
+│  │  │  ├─ tasks/main.yml
+│  │  │  └─ files/
+│  │  │     ├─ log-lite.sh
+│  │  │     └─ cert-lite.sh
+│  │  ├─ tls/                   # self-signed cert(s)
+│  │  │  └─ tasks/main.yml
+│  │  ├─ app_native/            # JAR deploy + systemd
+│  │  │  ├─ tasks/main.yml
+│  │  │  └─ templates/barq.service.j2
+│  │  ├─ app_docker/            # Docker mode (optional)
+│  │  │  ├─ tasks/main.yml
+│  │  │  └─ templates/Dockerfile.j2
+│  │  └─ nginx_lb/              # LB on third VM
+│  │     ├─ tasks/main.yml
+│  │     └─ templates/barq.conf.j2
+│  └─ files/
+│     └─ barq-lite.jar          # build locally & drop here (or keep sources below)
+├─ app/
+│  ├─ src/BarqLite.java
+│  ├─ manifest.mf
+│  └─ build.sh                  # helper to build barq-lite.jar locally
+│  ├─ testcode.sh
+│  ├─ ValidateJar.sh
+└─ README.md
+```
 ```
 
-- **ansible/**: All Ansible automation logic
-- **app/**: Java application artifacts, scripts, and versioning
-- **README.md**: Usage and contribution guide
+### File/Folder Explanations
+
+- **fetchLogs.yml**: Playbook to automate retrieval of application, proxy, or system logs from all hosts.
+- **files/**: Static resources (config files, scripts) copied to servers during deployments.
+- **group_vars/**: Variable definitions for Ansible host groups, controlling environment, app settings, etc.
+- **inventory.ini**: Defines target hosts and groupings for playbook execution.
+- **killprocessBarq.yml**: Playbook for stopping or killing Barq-related processes (for maintenance or emergency recovery).
+- **logs/**: Local storage for logs fetched from servers.
+- **roles/**: Modularized Ansible roles (see below for typical role breakdown).
+- **site.yml**: Aggregates all roles/playbooks for end-to-end infrastructure rollout.
 
 ---
 
-## File and Folder Descriptions
+## Deployment Methods
 
-| File/Folder | Purpose |
-|-------------|---------|
-| `README.md` | Main project documentation |
-| `ansible/`  | Ansible logic: playbooks, roles, inventories, config |
-| `app/`      | Java app artifacts, scripts, releases |
+### Native JAR Deployment
 
-### `ansible/` Directory
+- **Java Install**: Automated via Ansible or manually via `apt`.
+- **App Rollout**: Copy JAR, start via Systemd or Bash script.
+- **Sample Bash Script**:
+    ```bash
+    #!/bin/bash
+    JAR="barq-lite.jar"
+    DIR="/opt/barq-lite"
+    HOSTS=("server1" "server2")
+    for h in "${HOSTS[@]}"; do
+      scp "$JAR" deploy@"$h":"$DIR"/
+      ssh deploy@"$h" "sudo systemctl restart barq-lite || nohup java -jar $DIR/$JAR > $DIR/app.log 2>&1 &"
+    done
+    ```
 
-- `playbook.yml`: Main playbook for Java deployment
-- `hosts`: Inventory of target servers
-- `ansible.cfg`: (optional) Project-specific Ansible settings
-- `roles/`: (optional) Reusable task sets
-- `group_vars/`, `host_vars/`: (optional) Variable scoping
+- **Ansible Playbook (Excerpt)**:
+    ```- name: Prep servers (users, dirs, TLS, scripts, cron, app)
+  hosts: srv
+  become: true
+  serial: 1
 
-### `app/` Directory
+  roles:
+    - role: common
+    - role: tls
+    - role: scripts
+    - { role: app_native, when: deploy_mode == 'native' }
+    - { role: app_docker, when: deploy_mode == 'docker' }
+      
+- name: NGINX load balancer
+    hosts: lb
+    become: true
+    roles:
+     - nginx_lb
+    ```
 
-- Application binaries (e.g., `.jar` files)
-- Release/version markers
-- Custom scripts (e.g., pre/post-deployment, health checks)
+### Docker Deployment
+- **Run App**:
+    ```sh
+    docker build -t barq-lite:latest .
+    docker run -d --name barq1 --network barq-net -p 8080:8080 barq-lite:latest
+    ```
 
----
-
-## Setup Instructions
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/Omariibrahem/LegacyAppCycle.git
-cd LegacyAppCycle
-```
-
-### 2. Install Prerequisites
-
-See the [Prerequisites](#prerequisites) section for details.
-
-### 3. Set Up Passwordless SSH
-
-```bash
-ssh-keygen -t rsa
-ssh-copy-id user@target-server
-ssh user@target-server
-```
-
-### 4. Configure Inventory
-
-Edit `ansible/hosts`:
-```ini
-[servers]
-192.168.1.101 ansible_user=adminuser
-192.168.1.102 ansible_user=adminuser
-```
-
-### 5. Customize Ansible Configuration
-
-Edit/create `ansible/ansible.cfg`:
-```ini
-[defaults]
-inventory = ./hosts
-remote_user = adminuser
-host_key_checking = False
-
-[privilege_escalation]
-become=True
-become_method=sudo
-become_user=root
-become_ask_pass=False
-```
-
-### 6. Place Java Application Files
-
-Put your Java `.jar` files or release artifacts in `app/`.
-
-### 7. Edit Playbooks
-
-Review and tailor `ansible/playbook.yml` to your app’s needs.
+- **Bridge Networking**:
+    ```sh
+    docker network create barq-net
+    docker run --network barq-net --name app1 barq-lite:latest
+    ```
 
 ---
 
-## Usage Guide
+## Nginx Load Balancer
 
-- **Check connectivity**:
-  ```bash
-  ansible all -m ping
-  ```
-- **Syntax check**:
-  ```bash
-  ansible-playbook playbook.yml --syntax-check
-  ```
-- **Run playbook**:
-  ```bash
-  ansible-playbook playbook.yml
-  ```
-- **Use inventory explicitly**:
-  ```bash
-  ansible-playbook -i hosts playbook.yml
-  ```
-- **Limit execution**:
-  ```bash
-  ansible-playbook -i hosts playbook.yml --limit server1
-  ```
----
+- **Basic Config**:
+    ```nginx
+    upstream barq_app {
+        server 10.10.10.2:8080;
+        server 10.10.10.3:8080;
+    }
 
-### Cross-Distribution Consistency
+    server {
+        listen 80;
+        server_name _;
+        location / {
+            proxy_pass http://barq_app;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+    }
+    ```
 
-Use the `package` module for automatic package manager selection:
-```yaml
-- name: Ensure Java runtime is present
-  ansible.builtin.package:
-    name: openjdk-11-jre
-    state: present
-```
-Adjust package names per distribution.
-
-### JAVA_HOME and Environment Variables
-
-Set JAVA_HOME system-wide or for services:
-```yaml
-- name: Set JAVA_HOME in /etc/environment
-  lineinfile:
-    path: /etc/environment
-    line: "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64"
-    state: present
-```
-For systemd services, add `Environment=JAVA_HOME=...` in the unit file.
+- **Install & Enable**:
+    ```sh
+    sudo apt-get install nginx
+    sudo cp nginx/barq-lite.conf /etc/nginx/sites-available/
+    sudo ln -s /etc/nginx/sites-available/barq-lite.conf /etc/nginx/sites-enabled/
+    sudo nginx -t && sudo systemctl reload nginx
+    ```
 
 ---
 
-## IP Address Considerations
+## TLS Certificate Management
 
-### Static vs DHCP
-
-- Use static IPs for stability.
-- For Ubuntu, edit `/etc/netplan/01-netcfg.yaml` and apply with `sudo netplan apply`.
-- For CentOS/RHEL, configure `/etc/sysconfig/network-scripts/ifcfg-eth0`.
-
-### Troubleshooting
-
-- Check assigned IP: `ip a`
-- Verify connectivity: `ping`, `ssh`, `ansible all -m ping`
+- **Automated via Certbot & Ansible**
+    ```yaml
+    - name: Setup TLS
+      import_role:
+        name: geerlingguy.certbot
+    ```
+- **Renewal**: Cron jobs or Certbot’s built-in scheduling.
+- **Failure Alerts**: Certbot sends renewal failure notifications to configured email.
 
 ---
 
-## Troubleshooting Common Issues
+## Log Management
 
-- **YAML/syntax errors**: Use spaces, quote strings, validate with `yamllint`.
-- **SSH failures**: Confirm key-based login, correct IPs, open firewall.
-- **Variable/inventory issues**: Confirm variables exist, inventory is parsed.
-- **Package management**: Match package names to OS, ensure Python compatibility.
-- **Privilege escalation**: Use `become: true`, configure sudoers as needed.
-- **File permissions**: Ensure writable by deploying user, use `become: true`.
-- **Playbook execution**: Use `--syntax-check`, debug with `-vvv`.
-
-For JAVA_HOME in services, add to systemd unit files and reload systemd.
-
----
-
-
-
-## Security & Hardening
-
-- Use SSH keys, restrict inventory, firewall remote hosts
-- Consider containers for extra isolation
-- Store sensitive variables in Ansible Vault
-
----
-
-## Automation & Scaling
-
-- Modularize playbooks, use roles for repeatability
-- Use variable files for environment-specific overrides
+- **Logrotate Example**:
+    ```conf
+    /var/log/barq-lite/*.log {
+        daily
+        rotate 14
+        compress
+        delaycompress
+        missingok
+        notifempty
+        create 0640 app app
+        postrotate
+            systemctl reload barq-lite > /dev/null 2>&1 || true
+        endscript
+    }
+    ```
+- **Automated via Cron**:
+    - Log rotation
+    - TLS renewal
+    - Health reporting
 
 ---
 
+## Ansible Roles
+
+- **java**: Installs and configures OpenJDK
+- **app**: Deploys JAR or container, configures service
+- **docker**: Installs Docker, manages bridge networks
+- **nginx**: Configures and manages Nginx as load balancer/reverse proxy
+- **tls**: Manages Certbot/Let's Encrypt certificates
+- **logrotate**: Sets up log rotation for app and proxy logs
+
+---
+
+## Cloud/Public Exposure
+
+- Deploy Nginx LB VM to a cloud provider (AWS, Azure, GCP)
+- Harden SSH, configure firewalls
+- Use static IP and DNS for public endpoint
+- Secure with TLS and restrict access as needed
+
+---
+
+## Comparison: Native JAR vs Docker
+
+| Feature            | Native JAR             | Docker Container        |
+|--------------------|------------------------|------------------------|
+| Setup/Deploy       | Simple, direct         | Portable, isolated     |
+| Upgrades           | Manual restart         | Image swap/restart     |
+| Isolation          | OS-level               | Container-level        |
+| Scaling            | VM/service             | Compose/Swarm/K8s      |
+| Logging            | Host file/logrotate    | Volume or driver       |
+| Security           | Relies on host         | Container controls     |
+| Dev/Prod Parity    | Prone to drift         | Immutable              |
+
+---
+
+## Quickstart
+
+1. **Clone repo**
+    ```sh
+    git clone https://github.com/Omariibrahem/LegacyAppCycle.git
+    cd LegacyAppCycle/ansible
+    ```
+2. **Edit inventory and variables**
+    - Update `inventory.ini` and `group_vars/*` as needed.
+3. **Deploy (Native JAR)**
+    ```sh
+    ansible-playbook -i inventory.ini site.yml --tags "app,java"
+    ```
+4. **Deploy (Docker)**
+    ```sh
+    ansible-playbook -i inventory.ini site.yml --tags "docker,app"
+    ```
+5. **Set up Nginx Load Balancer**
+    ```sh
+    ansible-playbook -i inventory.ini site.yml --tags "nginx"
+    ```
+6. **Review logs and verify**
+    ```sh
+    tail -f /var/log/barq/app.log
+    tail -f /var/log/nginx/access.log
+    curl -Ik https://<nginx-public-ip>/
+    ```
+
+---
 ## FAQ
 
 **Q:** Why does my playbook fail with package not found?  
@@ -275,6 +316,28 @@ For JAVA_HOME in services, add to systemd unit files and reload systemd.
 **Q:** How to confirm affected hosts?  
 **A:** Use `ansible-inventory --graph` and `ansible all -m ping`.
 
+
+## Contribution & Extension
+
+- Add new app nodes by updating inventory and rerunning playbooks.
+- Extend roles for additional infrastructure (DB, monitoring, etc.).
+- Use modular roles for maintainability and collaboration.
+
 ---
+
+## References
+
+- [Ansible Documentation](https://docs.ansible.com/)
+- [Certbot Documentation](https://certbot.eff.org/)
+- [Docker Documentation](https://docs.docker.com/)
+- [Nginx Documentation](https://nginx.org/en/docs/)
+
+---
+
+**BARQ Lite** demonstrates best practices in automated deployment, observability, and cloud readiness. Its modular Ansible roles and clear separation of concerns make it a resilient foundation for Java apps—whether in development or production.
+
+
+---
+
 
 
