@@ -1,8 +1,9 @@
-# LegacyAppCycle
+  # LegacyAppCycle
 
 ---
-
-![[LegacyAppCycle Workflow](/legacyApp.gif)
+<p align="center">
+  <img src="/legacyApp.gif" width="600" alt="Demo Preview">
+</p>
 
 ---
 
@@ -275,4 +276,5 @@ For JAVA_HOME in services, add to systemd unit files and reload systemd.
 **A:** Use `ansible-inventory --graph` and `ansible all -m ping`.
 
 ---
+
 
