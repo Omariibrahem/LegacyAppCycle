@@ -1,0 +1,17 @@
+- name: Prep servers (users, dirs, TLS, scripts, cron, app)
+  hosts: srv
+  become: true
+  serial: 1
+
+  roles:
+    - role: common
+    - role: tls
+    - role: scripts
+    - { role: app_native, when: deploy_mode == 'native' }
+    - { role: app_docker, when: deploy_mode == 'docker' }
+      
+      #- name: NGINX load balancer
+      # hosts: lb
+      # become: true
+      #roles:
+      #- nginx_lb

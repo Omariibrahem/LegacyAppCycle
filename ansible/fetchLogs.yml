@@ -1,0 +1,29 @@
+- name: Fetch logs from remote server
+  hosts: srv
+  gather_facts: false
+  vars:
+    remote_log_dir: "/var/log/barq"
+    local_log_dir: "./logs"
+  tasks:
+    - name: Ensure local log directory exists
+      local_action:
+        module: file
+        path: "{{ local_log_dir }}"
+        state: directory
+        mode: "0777"  
+
+    - name: Fetch all log files including compressed ones
+      find:
+        paths: "{{ remote_log_dir }}"
+        patterns: "*.log*"
+        recurse: yes
+      register: log_files
+      become: true
+    - name: Fetch each log file individually
+      fetch:
+        src: "{{ item.path }}"
+        dest: "{{ local_log_dir }}/"
+        flat: yes
+      loop: "{{ log_files.files }}"
+      become: true
+

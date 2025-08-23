@@ -1,0 +1,48 @@
+- name: Create app group
+  group:
+    name: "{{ app_group }}"
+    state: present
+    system: true
+
+- name: Create app user
+  user:
+    name: "{{ app_user }}"
+    group: "{{ app_group }}"
+    create_home: false
+    system: true
+    shell: /usr/sbin/nologin
+
+- name: Create directories
+  file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner | default(app_user) }}"
+    group: "{{ item.group | default(app_group) }}"
+    mode: "{{ item.mode | default('0755') }}"
+  loop:
+    - { path: "{{ app_base }}", mode: "0755" }
+    - { path: "{{ releases_dir }}" }
+    - { path: "{{ log_dir }}", mode: "0755" }
+    - { path: "{{ tls_dir }}", mode: "0755" }
+    - { path: "{{ reports_dir }}", mode: "0755", owner: "root", group: "root" }
+
+- name: Create dated placeholder logs (yesterday & today) once
+  shell: |
+    set -e
+    y=$(date -d "yesterday" +%F)
+    t=$(date +%F)
+    touch "{{ log_dir }}/barq-${y}.log" "{{ log_dir }}/barq-${t}.log"
+  args:
+    creates: "{{ log_dir }}/.init_dated_logs"
+  register: _mklogs
+  changed_when: _mklogs.rc == 0
+  notify: mark_dated_logs
+
+- name: Mark dated logs created
+  file:
+    path: "{{ log_dir }}/.init_dated_logs"
+    state: touch
+
+- name: Handlers placeholder
+  meta: flush_handlers
+

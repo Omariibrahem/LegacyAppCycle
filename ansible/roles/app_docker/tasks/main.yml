@@ -1,0 +1,75 @@
+- name: Install Docker (Ubuntu)
+  apt:
+    name:
+      - docker.io
+    state: present
+    update_cache: true
+
+- name: Ensure docker service
+  systemd:
+    name: docker
+    enabled: true
+    state: started
+- name: Ensure release directory exists
+  file:
+    path: "{{ releases_dir }}/{{ release_id }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"  
+
+- name: Build image context
+  file:
+    path: "{{ releases_dir }}/{{ release_id }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+
+- name: Copy JAR for build
+  copy:
+    src: "{{ playbook_dir }}/files/{{ jar_name }}"
+    dest: "{{ releases_dir }}/{{ release_id }}/{{ jar_name }}"
+    mode: "0644"
+
+- name: Write Dockerfile
+  template:
+    src: Dockerfile.j2
+    dest: "{{ releases_dir }}/{{ release_id }}/Dockerfile"
+    mode: "0644"
+
+- name: Build image
+  community.docker.docker_image:
+    name: barq-lite
+    tag: "{{ release_id }}"
+    build:
+      path: "{{ releases_dir }}/{{ release_id }}"
+    source: build
+    state: present  
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+
+- name: Stop old container if exists
+  community.docker.docker_container:
+    name: barq-lite
+    state: absent
+  ignore_errors: true
+
+- name: Run container
+  community.docker.docker_container:
+    name: barq-lite
+    image: "barq-lite:{{ release_id }}"
+    # Use host networking to avoid IP conflicts
+    network_mode: host
+    volumes:
+      - "{{ log_dir }}:/var/log/barq"
+    restart_policy: always
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+
+- name: Wait for app port
+  wait_for:
+    host: "127.0.0.1"
+    port: "{{ http_port }}"
+    delay: 1
+    timeout: 30
+

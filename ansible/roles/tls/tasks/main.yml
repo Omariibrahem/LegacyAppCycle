@@ -1,0 +1,12 @@
+- name: Create a short-lived self-signed cert if none exists
+  shell: |
+    set -e
+    CN="barq.local"
+    [[ -f default.crt && -f default.key ]] && exit 0
+    openssl req -x509 -nodes -newkey rsa:2048 \
+      -keyout default.key -out default.crt \
+      -subj "/CN=${CN}" -days 3
+  args:
+    chdir: "{{ tls_dir }}"
+    creates: "{{ tls_dir }}/default.crt"
+

@@ -1,0 +1,27 @@
+- name: Install scripts
+  copy:
+    src: "{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - log-lite.sh
+    - cert-lite.sh
+
+- name: Cron for log-lite.sh
+  cron:
+    name: "BARQ log compression/retention"
+    user: root
+    minute: "10"
+    hour: "1"
+    job: "/usr/local/bin/log-lite.sh"
+
+- name: Cron for cert-lite.sh
+  cron:
+    name: "BARQ TLS cert report"
+    user: root
+    minute: "0"
+    hour: "7"
+    job: "/usr/local/bin/cert-lite.sh"
+

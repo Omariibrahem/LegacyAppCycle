@@ -1,0 +1,65 @@
+- name: Ensure Java runtime
+  package:
+    name: default-jre
+    state: present
+- name: Set release_id dynamically
+  set_fact:
+    release_id: "{{ lookup('pipe','date +%Y%m%d%H%M%S') }}"
+- name: Create release directory
+  file:
+    path: "{{ releases_dir }}/{{ release_id }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"
+  
+- name: Push release JAR
+  copy:
+    src: "{{ playbook_dir }}/files/{{ jar_name }}"
+    dest: "{{ releases_dir }}/{{ release_id }}/{{ jar_name }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0644"
+  notify: restart {{ service_name }}
+
+- name: Link current -> release
+  file:
+    src: "{{ releases_dir }}/{{ release_id }}"
+    dest: "{{ current_link }}"
+    state: link
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+  notify: restart {{ service_name }}
+
+- name: Systemd unit
+  template:
+    src: barq.service.j2
+    dest: "/etc/systemd/system/{{ service_name }}.service"
+    mode: "0644"
+  notify:
+    - daemon-reload
+    - restart {{ service_name }}
+
+- name: Enable & start service
+  systemd:
+    name: "{{ service_name }}"
+    enabled: true
+    state: started
+
+- name: Wait for app port
+  wait_for:
+    host: "{{ ansible_host }}"
+    port: "{{ http_port }}"
+    delay: 1
+    timeout: 60
+
+# Handlers
+- name: daemon-reload
+  systemd:
+    daemon_reload: true
+
+- name: restart {{ service_name }}
+  systemd:
+    name: "{{ service_name }}"
+    state: restarted
+

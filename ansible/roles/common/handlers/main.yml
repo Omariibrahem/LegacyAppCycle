@@ -1,0 +1,5 @@
+- name: mark_dated_logs
+  file:
+    path: "{{ log_dir }}/.init_dated_logs"
+    state: touch
+

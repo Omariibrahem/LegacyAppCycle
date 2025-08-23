@@ -1,0 +1,9 @@
+FROM openjdk:21-jdk-slim
+WORKDIR /app
+COPY {{ jar_name }} /app/{{ jar_name }}
+ENV LOG_FILE=/var/log/barq/barq.log
+ENV PORT={{ http_port }}
+VOLUME ["/var/log/barq"]
+EXPOSE 8080
+ENTRYPOINT ["java","-jar","/app/{{ jar_name }}"]
+

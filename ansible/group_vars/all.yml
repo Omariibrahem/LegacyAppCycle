@@ -1,0 +1,28 @@
+app_name: barq
+app_user: barq
+app_group: barq
+
+app_base: /opt/barq
+releases_dir: "{{ app_base }}/releases"
+current_link: "{{ app_base }}/current"
+
+log_dir: /var/log/barq
+reports_dir: /var/reports
+tls_dir: /etc/ssl/patrol
+  # release_id can be date + git rev, here just date
+release_id: "{{ lookup('pipe','date +%Y%m%d%H') }}"
+jar_name: barq-lite.jar
+local_log_dir: /home/omaribrahem24/applogs  
+
+# mode: native (systemd running java -jar) OR docker (containerized)
+deploy_mode: docker   # change to "docker" to use container mode
+
+service_name: barq
+http_port: 80
+
+# NGINX LB upstreams:
+host_ip: 192.168.1.10
+upstreams:
+  - { name: "s1", addr: "192.168.1.30:8080" }
+  - { name: "s2", addr: "192.168.1.20:8080" }
+

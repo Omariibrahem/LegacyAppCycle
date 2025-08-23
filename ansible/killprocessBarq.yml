@@ -1,0 +1,36 @@
+---
+- name: Stop service or kill process on port 8080
+  hosts: all
+  become: yes
+  tasks:
+
+    - name: Check if something is listening on port 8080
+      ansible.builtin.shell: "ss -tulpn | grep ':8080 ' || true"
+      register: port_check
+      changed_when: false
+
+    - name: Extract PID of process on 8080
+      ansible.builtin.shell: "ss -tulpn | grep ':8080 ' | awk '{print $NF}' | cut -d',' -f2 | cut -d'=' -f2 || true"
+      register: process_pid
+      changed_when: false
+      when: port_check.stdout != ""
+
+    - name: Check if barq service is active
+      ansible.builtin.shell: "systemctl is-active barq || true"
+      register: barq_service
+      changed_when: false
+      when: port_check.stdout != ""
+
+    - name: Stop barq service if active
+      ansible.builtin.systemd:
+        name: barq
+        state: stopped
+      when:
+        - barq_service.stdout == "active"
+
+    - name: Kill process using port 8080 (if not barq)
+      ansible.builtin.shell: "kill -9 {{ process_pid.stdout }}"
+      when:
+        - process_pid.stdout != ""
+        - barq_service.stdout != "active"
+

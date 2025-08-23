@@ -1,0 +1,36 @@
+- name: Install nginx
+  yum:
+    name: nginx
+    state: present
+    update_cache: true
+
+- name: NGINX conf
+  template:
+    src: barq.conf.j2
+    dest: /etc/nginx/conf.d/barq.conf
+    mode: "0644"
+  notify: reload nginx
+
+- name: Remove default site (optional)
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: reload nginx
+
+- name: Ensure nginx
+  systemd:
+    name: nginx
+    enabled: true
+    state: started
+
+- name: Health check LB port
+  wait_for:
+    port: 80
+    timeout: 20
+
+# handler
+- name: reload nginx
+  systemd:
+    name: nginx
+    state: reloaded
+
