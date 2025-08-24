@@ -2,7 +2,7 @@
 
 ---
 <p align="center">
-  <img src="/legacyApp.gif" width="600" alt="Demo Preview">
+  <img src="/LegacyApp.gif" width="600" alt="Demo Preview">
 </p>
 
 ---
@@ -338,6 +338,7 @@ barq-lite/
 
 
 ---
+
 
 
 
